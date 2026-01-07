@@ -35,7 +35,7 @@ fn apply_op(op: &BinOp, l: i128, r: i128) -> Option<i128> {
 
 fn lower_bound_of_first_thread(init: &Expr) -> Option<i128> {
     match init {
-        Expr::ThreadIdx {..} | Expr::BlockIdx {..} => Some(0),
+        Expr::ThreadIdx {..} => Some(0),
         Expr::BinOp {lhs, op, rhs, ..} => {
             lower_bound_of_first_thread(&lhs)
                 .zip(lower_bound_of_first_thread(&rhs))
