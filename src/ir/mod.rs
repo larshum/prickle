@@ -3,6 +3,7 @@ mod classify_functions;
 mod constant_fold;
 mod eliminate_gpu_context;
 mod from_py_ast;
+mod graph_repr;
 mod inter_block;
 mod par_tree;
 mod pprint;

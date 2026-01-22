@@ -1,4 +1,5 @@
 use super::ast::*;
+use super::graph_repr;
 use super::par_tree;
 use super::target_constraints::TargetConstraint;
 use crate::option;
@@ -1191,17 +1192,29 @@ pub fn restructure_inter_block_synchronization(
     // Host functions are those where the target constraints were identified as 'HostOnly'.
     let host_functions = collect_host_functions(&mapping);
 
+    // Tree structure of the program, without considering parallelism.
+    let s = graph_repr::make_graph(&body);
+    println!("{s}");
+
     // Insert a synchronization point at the end of each parallel for-loop, and determine for each
     // of them whether they require inter-block synchronization.
     let body = insert_synchronization_points(body, &host_functions);
     let par = par_tree::build_tree(&body);
     let body = classify_synchronization_points(&par, opts, body);
 
+    // After adding parallelism to the graph.
+    let s = graph_repr::make_graph(&body);
+    println!("{s}");
+
     // Split up inter-block parallel reductions in two parts. In the first part, the full reduction
     // is split across the blocks, such that each block writes to its own temporary memory
     // location. Then, in the second part, we reduce these values to a single value, stored in the
     // original location.
     let body = split_inter_block_parallel_reductions(opts, body)?;
+    
+    // After separating inter-block reductions into two parts.
+    let s = graph_repr::make_graph(&body);
+    println!("{s}");
 
     // Lift sequential loops inside parallel code containing inter-block synchronization points
     // such that they occur outside of the parallel code, and restructure the code to ensure the
@@ -1212,9 +1225,9 @@ pub fn restructure_inter_block_synchronization(
     // only found at the end of a parallel for-loop.
     let body = split_inter_block_synchronizations(body);
 
-    // Remove synchronization points that occur outside parallel code. At this point,
-    // synchronization is not required as such code runs sequentially on the host (CPU).
-    let body = remove_unused_synchronization_points(body);
+    // After splitting at inter-block synchronization points.
+    let s = graph_repr::make_graph(&body);
+    println!("{s}");
 
     // After lifting, the code may be restructured such that the definition and the use(s) of a
     // local variable end up in separate parallel kernels. First, we promote assignments to
@@ -1226,6 +1239,14 @@ pub fn restructure_inter_block_synchronization(
     // After the above transformations, we may end up with repeated use of a parallel for-loop. To
     // make sure later transformations work as expected, we need to re-symbolize loop variables.
     let body = resymbolize_duplicated_loops(body);
+
+    // After adding temporary allocations and fixing duplicate loop names
+    let s = graph_repr::make_graph(&body);
+    println!("{s}");
+
+    // Remove synchronization points that occur outside parallel code. At this point,
+    // synchronization is not required as such code runs sequentially on the host (CPU).
+    let body = remove_unused_synchronization_points(body);
 
     // Removes the parallelism of loop nests that contain calls to host code. This includes a call
     // to a host external or a callback function.
