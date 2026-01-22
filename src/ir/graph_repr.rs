@@ -144,6 +144,7 @@ impl GraphNode {
         let (_, edges_str) = self.print_edges(env);
         format!(
             "digraph G {{\n\
+             {6}ordering=\"out\";\n\
              {6}node [color=black, style=filled] {0}; // root node\n\
              {6}node [style=dashed] {1}; // inter-block parallel nodes\n\
              {6}node [style=bold] {2}; // block-local parallel nodes\n\
