@@ -10,7 +10,7 @@ fn to_ctype<'py>(ty: &Type, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
     let ctypes = py.import("ctypes")?;
     match ty {
         Type::Scalar {sz} => sz.to_ctype(py),
-        Type::Pointer {ty, mem: _} => {
+        Type::Pointer {ty, mem: _, shape: _} => {
             // Construct a special function type if we have a pointer to a function. Otherwise, we
             // just use a void pointer type (this works regardless of the pointer type on the
             // receiving end).

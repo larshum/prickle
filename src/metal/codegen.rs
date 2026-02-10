@@ -54,7 +54,7 @@ fn from_gpu_ir_type(env: &CodegenEnv, ty: gpu_ast::Type, i: &Info) -> CompileRes
                 _ => Ok(Type::Scalar {sz})
             }
         },
-        gpu_ast::Type::Pointer {ty, mem} => {
+        gpu_ast::Type::Pointer {ty, shape: _, mem} => {
             match from_gpu_ir_type(env, *ty, i) {
                 Ok(Type::Pointer {..}) => {
                     parpy_type_error!(i, "Found nested pointer in generated code, \
@@ -526,8 +526,8 @@ mod test {
 
     #[test]
     fn from_nested_pointer() {
-        let inner_ty = gpu::pointer(gpu::scalar(ElemSize::F32), gpu_ast::MemSpace::Device);
-        let ty = gpu::pointer(inner_ty, gpu_ast::MemSpace::Device);
+        let inner_ty = gpu::pointer(gpu::scalar(ElemSize::F32), vec![], gpu_ast::MemSpace::Device);
+        let ty = gpu::pointer(inner_ty, vec![], gpu_ast::MemSpace::Device);
         let env = mk_device_env();
         let r = from_gpu_ir_type(&env, ty, &i());
         assert_error_matches(r, "nested pointer");
@@ -535,14 +535,14 @@ mod test {
 
     #[test]
     fn from_1d_pointer_host() {
-        let ty = gpu::pointer(gpu::scalar(ElemSize::F32), gpu_ast::MemSpace::Device);
+        let ty = gpu::pointer(gpu::scalar(ElemSize::F32), vec![], gpu_ast::MemSpace::Device);
         let env = mk_host_env();
         assert_eq!(from_gpu_ir_type(&env, ty, &i()).unwrap(), Type::MTLBufferPtr);
     }
 
     #[test]
     fn from_1d_pointer_device() {
-        let ty = gpu::pointer(gpu::scalar(ElemSize::F32), gpu_ast::MemSpace::Device);
+        let ty = gpu::pointer(gpu::scalar(ElemSize::F32), vec![], gpu_ast::MemSpace::Device);
         let env = mk_device_env();
         let expected = pointer(scalar(ElemSize::F32), MemSpace::Device);
         assert_eq!(from_gpu_ir_type(&env, ty, &i()).unwrap(), expected);
@@ -551,7 +551,7 @@ mod test {
     #[test]
     fn from_host_array_access_expr() {
         let e = gpu::array_access(
-            gpu::var("x", gpu::pointer(gpu::scalar(ElemSize::F32), gpu_ast::MemSpace::Device)),
+            gpu::var("x", gpu::pointer(gpu::scalar(ElemSize::F32), vec![], gpu_ast::MemSpace::Device)),
             gpu::int(0, Some(ElemSize::I32)),
             gpu::scalar(ElemSize::F32)
         );
@@ -568,7 +568,7 @@ mod test {
     #[test]
     fn from_device_array_access_expr() {
         let e = gpu::array_access(
-            gpu::var("x", gpu::pointer(gpu::scalar(ElemSize::F32), gpu_ast::MemSpace::Device)),
+            gpu::var("x", gpu::pointer(gpu::scalar(ElemSize::F32), vec![], gpu_ast::MemSpace::Device)),
             gpu::int(0, Some(ElemSize::I32)),
             gpu::scalar(ElemSize::F32)
         );
@@ -611,7 +611,7 @@ mod test {
     #[test]
     fn from_scalar_indexed_buffer_param() {
         let env = mk_host_env();
-        let ty = gpu::pointer(gpu::scalar(ElemSize::I32), gpu_ast::MemSpace::Device);
+        let ty = gpu::pointer(gpu::scalar(ElemSize::I32), vec![10], gpu_ast::MemSpace::Device);
         let p = gpu_ast::Param {id: id("x"), ty, i: i()};
         let expected = Param {
             id: id("x"), ty: Type::MTLBufferPtr,

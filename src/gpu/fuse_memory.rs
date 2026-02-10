@@ -471,7 +471,7 @@ mod test {
     #[test]
     fn write_to_local() {
         let loc = array_access(
-            var("x", pointer(scalar(ElemSize::F32), MemSpace::Device)),
+            var("x", pointer(scalar(ElemSize::F32), vec![], MemSpace::Device)),
             int(1, Some(ElemSize::I32)),
             scalar(ElemSize::F32)
         );
@@ -492,7 +492,7 @@ mod test {
     #[test]
     fn eliminate_repeated_write() {
         let loc = array_access(
-            var("x", pointer(scalar(ElemSize::F32), MemSpace::Device)),
+            var("x", pointer(scalar(ElemSize::F32), vec![], MemSpace::Device)),
             int(1, Some(ElemSize::I32)),
             scalar(ElemSize::F32)
         );
@@ -522,7 +522,7 @@ mod test {
     #[test]
     fn read_after_write_use_local_variable() {
         let loc = array_access(
-            var("x", pointer(scalar(ElemSize::F32), MemSpace::Device)),
+            var("x", pointer(scalar(ElemSize::F32), vec![], MemSpace::Device)),
             int(1, Some(ElemSize::I32)),
             scalar(ElemSize::F32)
         );
@@ -566,7 +566,7 @@ mod test {
         // The second use should not be replaced with a temporary variable because the for-loop
         // could (and in this case, it actually does) write to the same location.
         let loc = array_access(
-            var("x", pointer(scalar(ElemSize::I32), MemSpace::Device)),
+            var("x", pointer(scalar(ElemSize::I32), vec![], MemSpace::Device)),
             int(1, Some(ElemSize::I32)),
             scalar(ElemSize::I32)
         );
@@ -590,7 +590,7 @@ mod test {
                 body: vec![
                     assign(
                         array_access(
-                            var("x", pointer(scalar(ElemSize::I32), MemSpace::Device)),
+                            var("x", pointer(scalar(ElemSize::I32), vec![], MemSpace::Device)),
                             var("i", scalar(ElemSize::I32)),
                             scalar(ElemSize::I32)
                         ),
@@ -645,7 +645,7 @@ mod test {
                     },
                     assign(
                         array_access(
-                            var("x", pointer(scalar(ElemSize::I32), MemSpace::Device)),
+                            var("x", pointer(scalar(ElemSize::I32), vec![], MemSpace::Device)),
                             var("i", scalar(ElemSize::I32)),
                             scalar(ElemSize::I32)
                         ),
@@ -670,7 +670,7 @@ mod test {
 
     #[test]
     fn skip_fusion_for_shared_memory() {
-        let dst = var("x", pointer(scalar(ElemSize::F32), MemSpace::Device));
+        let dst = var("x", pointer(scalar(ElemSize::F32), vec![], MemSpace::Device));
         let loc = array_access(
             dst.clone(),
             int(1, Some(ElemSize::I32)),
@@ -725,7 +725,7 @@ mod test {
     #[test]
     fn full_write_read_write_fusion() {
         let loc = array_access(
-            var("x", pointer(scalar(ElemSize::F32), MemSpace::Device)),
+            var("x", pointer(scalar(ElemSize::F32), vec![], MemSpace::Device)),
             int(1, Some(ElemSize::I32)),
             scalar(ElemSize::F32)
         );

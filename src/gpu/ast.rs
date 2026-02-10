@@ -32,7 +32,7 @@ pub enum Dim {
 pub enum Type {
     Void,
     Scalar {sz: ElemSize},
-    Pointer {ty: Box<Type>, mem: MemSpace},
+    Pointer {ty: Box<Type>, shape: Vec<i64>, mem: MemSpace},
     Function {result: Box<Type>, args: Vec<Type>},
 }
 

@@ -26,7 +26,7 @@ fn extract_callback(body: &Vec<Stmt>) -> Option<(Name, Info)> {
     }
 }
 
-fn py_to_gpu_type(ty: py_ast::Type) -> Type {
+fn py_to_gpu_type(ty: py_ast::Type, i: &Info) -> CompileResult<Type> {
     // Converts a Python AST type to a GPU AST type. As arguments to a callback function have to be
     // tensors (scalar or non-scalar), this should work correctly for supported types. If a
     // user-defined callback function expects another kind of type, this should have been caught
@@ -34,14 +34,25 @@ fn py_to_gpu_type(ty: py_ast::Type) -> Type {
     match ty {
         py_ast::Type::Tensor {sz: py_ast::TensorElemSize::Fixed {sz}, shape} => {
             if shape.is_empty() {
-                Type::Scalar {sz}
+                Ok(Type::Scalar {sz})
             } else {
                 let ty = Box::new(Type::Scalar {sz});
-                Type::Pointer {ty, mem: MemSpace::Device}
+                let shape = shape.into_iter()
+                    .map(|sh| match sh {
+                        py_ast::TensorShape::Num {n} => Ok(n),
+                        py_ast::TensorShape::Symbol {..} => {
+                            parpy_compile_error!(i, "Found unresolved shape variable")
+                        }
+                    })
+                    .collect::<CompileResult<Vec<i64>>>()?;
+                Ok(Type::Pointer {
+                    ty,
+                    shape,
+                    mem: MemSpace::Device
+                })
             }
         },
-        py_ast::Type::Void => Type::Void,
-        _ => Type::Void
+        _ => Ok(Type::Void),
     }
 }
 
@@ -49,19 +60,19 @@ fn generate_callback(
     s: Stmt,
     callback_id: Name,
     i: Info
-) -> (Callback, Stmt) {
+) -> CompileResult<(Callback, Stmt)> {
     let fvs = s.free_vars();
     let params = fvs.clone()
         .into_iter()
         .map(|(id, ty)| py_ast::Param {id, ty, i: Info::default()})
         .collect::<Vec<py_ast::Param>>();
     let fv_args = fvs.into_iter()
-        .map(|(id, ty)| Expr::Var {
+        .map(|(id, ty)| Ok(Expr::Var {
             id: id.clone(),
-            ty: py_to_gpu_type(ty.clone()),
+            ty: py_to_gpu_type(ty.clone(), &i)?,
             i: Info::default()
-        })
-        .collect::<Vec<Expr>>();
+        }))
+        .collect::<CompileResult<Vec<Expr>>>()?;
     let arg_types = fv_args.iter()
         .map(|e| e.get_type().clone())
         .collect::<Vec<Type>>();
@@ -70,6 +81,7 @@ fn generate_callback(
             result: Box::new(Type::Void),
             args: arg_types
         }),
+        shape: vec![],
         mem: MemSpace::Host
     };
     let callback_wrap_stmt = Stmt::Expr {
@@ -81,35 +93,35 @@ fn generate_callback(
         },
         i
     };
-    ( Callback {id: callback_id, params, ty, body: s}
-    , callback_wrap_stmt )
+    Ok(( Callback {id: callback_id, params, ty, body: s}
+       , callback_wrap_stmt ))
 }
 
 fn collect_used_callbacks_stmt(
     mut acc: Vec<Callback>,
     s: Stmt
-) -> (Vec<Callback>, Stmt) {
+) -> CompileResult<(Vec<Callback>, Stmt)> {
     match s {
         Stmt::For {ref body, ..} => {
             if let Some((id, i)) = extract_callback(&body) {
-                let (callback, callback_wrap_stmt) = generate_callback(s, id, i);
+                let (callback, callback_wrap_stmt) = generate_callback(s, id, i)?;
                 acc.push(callback);
-                (acc, callback_wrap_stmt)
+                Ok((acc, callback_wrap_stmt))
             } else {
-                s.smap_accum_l(acc, collect_used_callbacks_stmt)
+                s.smap_accum_l_result(Ok(acc), collect_used_callbacks_stmt)
             }
         },
         Stmt::Expr {ref e, ..} => {
             if let Expr::PyCallback {id, i, ..} = &e {
                 let (id, i) = (id.clone(), i.clone());
-                let (callback, callback_wrap_stmt) = generate_callback(s, id, i);
+                let (callback, callback_wrap_stmt) = generate_callback(s, id, i)?;
                 acc.push(callback);
-                (acc, callback_wrap_stmt)
+                Ok((acc, callback_wrap_stmt))
             } else {
-                s.smap_accum_l(acc, collect_used_callbacks_stmt)
+                s.smap_accum_l_result(Ok(acc), collect_used_callbacks_stmt)
             }
         },
-        _ => s.smap_accum_l(acc, collect_used_callbacks_stmt)
+        _ => s.smap_accum_l_result(Ok(acc), collect_used_callbacks_stmt)
     }
 }
 
@@ -131,14 +143,14 @@ fn add_callback_parameters(
 ) -> CompileResult<(Vec<Callback>, Top)> {
     match t {
         Top::FunDef {ret_ty, id, params, body, target: Target::Host, i} => {
-            let (mut cbs, body) = body.smap_accum_l(vec![], collect_used_callbacks_stmt);
+            let (mut cbs, body) = body.smap_accum_l_result(Ok(vec![]), collect_used_callbacks_stmt)?;
             let params = insert_callback_parameters(params, cbs.clone());
             acc.append(&mut cbs);
             Ok((acc, Top::FunDef {ret_ty, id, params, body, target: Target::Host, i}))
         },
         Top::KernelFunDef {ref body, ref i, ..} |
         Top::FunDef {ref body, ref i, ..} => {
-            let (cbs, _) = body.clone().smap_accum_l(vec![], collect_used_callbacks_stmt);
+            let (cbs, _) = body.clone().smap_accum_l_result(Ok(vec![]), collect_used_callbacks_stmt)?;
             if cbs.is_empty() {
                 Ok((acc, t))
             } else {

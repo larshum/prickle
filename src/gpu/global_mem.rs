@@ -249,7 +249,7 @@ mod test {
 
     #[test]
     fn test_write_to_array() {
-        let ptr_ty = pointer(scalar(ElemSize::I32), MemSpace::Device);
+        let ptr_ty = pointer(scalar(ElemSize::I32), vec![], MemSpace::Device);
         let lhs = array_access(var("x", ptr_ty), int(0, Some(ElemSize::I32)), scalar(ElemSize::I32));
         let rhs = var("y", scalar(ElemSize::I32));
         let s = assign(lhs.clone(), rhs.clone());

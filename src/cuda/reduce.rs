@@ -131,7 +131,11 @@ fn generate_cluster_iterative_reduction(
         i: i.clone()
     };
     let other_smem_id = Name::sym_str("other_block_smem");
-    let smem_ty = Type::Pointer {ty: Box::new(data.res_ty.clone()), mem: MemSpace::Device};
+    let smem_ty = Type::Pointer {
+        ty: Box::new(data.res_ty.clone()),
+        shape: vec![],
+        mem: MemSpace::Device
+    };
     let other_smem_var = Expr::Var {
         id: other_smem_id.clone(), ty: smem_ty.clone(), i: data.i.clone()
     };

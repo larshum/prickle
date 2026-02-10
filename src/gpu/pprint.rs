@@ -75,7 +75,7 @@ fn pprint_type(decl: String, ty: &Type, env: PrettyPrintEnv) -> (PrettyPrintEnv,
             let (env, sz) = sz.pprint(env);
             join_space(sz, decl, env)
         },
-        Type::Pointer {ty, mem} => {
+        Type::Pointer {ty, shape: _, mem} => {
             let (env, mem) = mem.pprint(env);
             pprint_type(format!("{mem} (*{decl})"), ty, env)
         },
@@ -804,6 +804,7 @@ mod test {
             id: id("x"),
             ty: Type::Pointer {
                 ty: Box::new(Type::Scalar {sz: ElemSize::I16}),
+                shape: vec![],
                 mem: MemSpace::Device
             },
             i: i()
@@ -821,6 +822,7 @@ mod test {
                     result: Box::new(Type::Void),
                     args: vec![Type::Scalar {sz: ElemSize::F32}]
                 }),
+                shape: vec![],
                 mem: MemSpace::Host
             },
             i: i()

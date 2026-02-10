@@ -22,7 +22,11 @@ type BufferEnv = BTreeMap<Name, TempBuffer>;
 fn insert_temporary_buffers_arg(mut acc: BufferEnv, arg: Expr) -> (BufferEnv, Expr) {
     match arg {
         Expr::Var {id, ty, i} if ty.is_scalar() => {
-            let buf_ty = Type::Pointer {ty: Box::new(ty.clone()), mem: MemSpace::Device};
+            let buf_ty = Type::Pointer {
+                ty: Box::new(ty.clone()),
+                shape: vec![],
+                mem: MemSpace::Device
+            };
             let o = acc.get(&id);
             match o {
                 Some(TempBuffer {buf_id, ..}) => {
@@ -48,7 +52,11 @@ fn insert_temporary_buffers_arg(mut acc: BufferEnv, arg: Expr) -> (BufferEnv, Ex
 
 fn alloc_temporary_buffer(buf: &TempBuffer) -> Vec<Stmt> {
     let TempBuffer {buf_id, src_id, elem_ty, i} = buf;
-    let buf_ty = Type::Pointer {ty: Box::new(elem_ty.clone()), mem: MemSpace::Device};
+    let buf_ty = Type::Pointer {
+        ty: Box::new(elem_ty.clone()),
+        shape: vec![],
+        mem: MemSpace::Device
+    };
     let def = Stmt::Definition {
         ty: buf_ty.clone(), id: buf_id.clone(),
         expr: Expr::Int {v: 0, ty: buf_ty.clone(), i: i.clone()},
@@ -114,7 +122,11 @@ fn convert_scalar_param_to_pointer(
     let (conv_params, ty) = match &ty {
         _ if ty.is_scalar() => {
             conv_params.push(id.clone());
-            let ty = Type::Pointer {ty: Box::new(ty.clone()), mem: MemSpace::Device};
+            let ty = Type::Pointer {
+                ty: Box::new(ty.clone()),
+                shape: vec![],
+                mem: MemSpace::Device
+            };
             (conv_params, ty)
         },
         _ => (conv_params, ty)
@@ -127,6 +139,7 @@ fn update_use_of_converted_scalar_params_expr(conv: &BTreeSet<Name>, e: Expr) ->
         Expr::Var {id, ty, i} if conv.contains(&id) => {
             let ptr_ty = Type::Pointer {
                 ty: Box::new(ty.clone()),
+                shape: vec![],
                 mem: MemSpace::Device
             };
             Expr::ArrayAccess {
@@ -179,7 +192,11 @@ mod test {
         let (env, e) = insert_temporary_buffers_arg(env, e);
         assert_eq!(env.len(), 1);
         let TempBuffer {buf_id, ..} = env.get(&id("x")).unwrap();
-        let buf_ty = Type::Pointer {ty: Box::new(scalar(ElemSize::I32)), mem: MemSpace::Device};
+        let buf_ty = Type::Pointer {
+            ty: Box::new(scalar(ElemSize::I32)),
+            shape: vec![],
+            mem: MemSpace::Device
+        };
         let expected = Expr::Var {id: buf_id.clone(), ty: buf_ty, i: i()};
         assert_eq!(e, expected);
     }
@@ -198,7 +215,11 @@ mod test {
         let e = var("x", scalar(ElemSize::F32));
         let (env_post, e) = insert_temporary_buffers_arg(env.clone(), e);
         assert_eq!(env, env_post);
-        let buf_ty = Type::Pointer {ty: Box::new(scalar(ElemSize::I32)), mem: MemSpace::Device};
+        let buf_ty = Type::Pointer {
+            ty: Box::new(scalar(ElemSize::I32)),
+            shape: vec![],
+            mem: MemSpace::Device
+        };
         let expected = Expr::Var {id: buf_id, ty: buf_ty, i: i()};
         assert_eq!(e, expected);
     }
@@ -220,13 +241,21 @@ mod test {
         let p = Param {id: id("x"), ty: scalar(ElemSize::F32), i: i()};
         let (conv, p) = convert_scalar_param_to_pointer(vec![], p);
         assert_eq!(conv, vec![id("x")]);
-        let ty = Type::Pointer {ty: Box::new(scalar(ElemSize::F32)), mem: MemSpace::Device};
+        let ty = Type::Pointer {
+            ty: Box::new(scalar(ElemSize::F32)),
+            shape: vec![],
+            mem: MemSpace::Device
+        };
         assert_eq!(p, Param {id: id("x"), ty, i: i()});
     }
 
     #[test]
     fn convert_non_scalar_param() {
-        let ty = Type::Pointer {ty: Box::new(scalar(ElemSize::F32)), mem: MemSpace::Device};
+        let ty = Type::Pointer {
+            ty: Box::new(scalar(ElemSize::F32)),
+            shape: vec![],
+            mem: MemSpace::Device
+        };
         let p = Param {id: id("x"), ty, i: i()};
         let (conv, p_post) = convert_scalar_param_to_pointer(vec![], p.clone());
         assert_eq!(conv, vec![]);

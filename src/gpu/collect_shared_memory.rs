@@ -171,6 +171,7 @@ fn record_shared_memory_use_expr(
             let args = if offset > 0 {
                 let ptr_ty = Type::Pointer {
                     ty: Box::new(Type::Scalar {sz: ElemSize::I8}),
+                    shape: vec![],
                     mem: MemSpace::Shared
                 };
                 args.push(make_shared_memory_pointer(
@@ -215,7 +216,11 @@ fn record_shared_memory_use_stmt(
         }
         Stmt::AllocShared {elem_ty, id, sz: _, i} => {
             let (env, offset) = env.remove_alloc(&id)?;
-            let ty = Type::Pointer {ty: Box::new(elem_ty), mem: MemSpace::Shared};
+            let ty = Type::Pointer {
+                ty: Box::new(elem_ty),
+                shape: vec![],
+                mem: MemSpace::Shared
+            };
             let smem_ptr = make_shared_memory_pointer(&env.local_state.smem_id, offset, &ty, &i);
             let def = Stmt::Definition {
                 ty: ty.clone(), id, expr: smem_ptr, i
@@ -293,6 +298,7 @@ fn apply_top(
             let params = if local_state.peak_usage_bytes > 0 {
                 let ptr_ty = Type::Pointer {
                     ty: Box::new(Type::Scalar {sz: ElemSize::I8}),
+                    shape: vec![local_state.peak_usage_bytes as i64],
                     mem: MemSpace::Shared
                 };
                 params.push(Param {

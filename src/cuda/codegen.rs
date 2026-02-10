@@ -375,7 +375,7 @@ mod test {
 
     #[test]
     fn pointer_to_16bit_float_detected() {
-        let ty = gpu::pointer(gpu::scalar(ElemSize::F16), gpu_ast::MemSpace::Device);
+        let ty = gpu::pointer(gpu::scalar(ElemSize::F16), vec![], gpu_ast::MemSpace::Device);
         assert!(type_contains_16_bit_floats(false, &ty));
     }
 

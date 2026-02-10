@@ -23,11 +23,19 @@ struct CodegenEnv<'a> {
 fn from_ir_type(ty: ir_ast::Type) -> Type {
     match ty {
         ir_ast::Type::Tensor {sz, shape} if shape.is_empty() => Type::Scalar {sz},
-        ir_ast::Type::Tensor {sz, ..} => {
-            Type::Pointer {ty: Box::new(Type::Scalar {sz}), mem: MemSpace::Device}
+        ir_ast::Type::Tensor {sz, shape} => {
+            Type::Pointer {
+                ty: Box::new(Type::Scalar {sz}),
+                shape,
+                mem: MemSpace::Device
+            }
         },
-        ir_ast::Type::Pointer {ty, ..} => {
-            Type::Pointer {ty: Box::new(from_ir_type(*ty)), mem: MemSpace::Device}
+        ir_ast::Type::Pointer {ty} => {
+            Type::Pointer {
+                ty: Box::new(from_ir_type(*ty)),
+                shape: vec![],
+                mem: MemSpace::Device
+            }
         },
         ir_ast::Type::Void => Type::Void,
     }
@@ -496,7 +504,11 @@ fn from_ir_stmt(
         ir_ast::Stmt::Alloc {id, elem_ty, sz, i} => {
             let elem_ty = from_ir_type(elem_ty);
             let mem = MemSpace::Device;
-            let ty = Type::Pointer {ty: Box::new(elem_ty.clone()), mem};
+            let ty = Type::Pointer {
+                ty: Box::new(elem_ty.clone()),
+                shape: vec![sz as i64],
+                mem
+            };
             let expr = Expr::Int {v: 0, ty: ty.clone(), i: i.clone()};
             host_body.push(Stmt::Definition {ty, id: id.clone(), expr, i: i.clone()});
             host_body.push(Stmt::AllocDevice {id, elem_ty, sz, i});
@@ -642,7 +654,7 @@ mod test {
     #[test]
     fn from_tensor_vec_type() {
         let ty = ir_ast::Type::Tensor {sz: ElemSize::I64, shape: vec![10]};
-        assert_eq!(from_ir_type(ty), pointer(scalar(ElemSize::I64), MemSpace::Device));
+        assert_eq!(from_ir_type(ty), pointer(scalar(ElemSize::I64), vec![10], MemSpace::Device));
     }
 
     #[test]
@@ -968,6 +980,7 @@ mod test {
         let fst = body.pop().unwrap();
         let ty = Type::Pointer {
             ty: Box::new(scalar(ElemSize::F32)),
+            shape: vec![10],
             mem: MemSpace::Device
         };
         let fst_expected = Stmt::Definition {

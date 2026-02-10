@@ -15,8 +15,8 @@ pub fn bool_ty() -> Type {
     scalar(ElemSize::Bool)
 }
 
-pub fn pointer(ty: Type, mem: MemSpace) -> Type {
-    Type::Pointer {ty: Box::new(ty), mem}
+pub fn pointer(ty: Type, shape: Vec<i64>, mem: MemSpace) -> Type {
+    Type::Pointer {ty: Box::new(ty), shape, mem}
 }
 
 pub fn var(s: &str, ty: Type) -> Expr {

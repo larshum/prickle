@@ -39,7 +39,7 @@ mod test {
     fn assign_stmt() -> Stmt {
         assign(
             array_access(
-                var("x", pointer(scalar(ElemSize::F32), MemSpace::Device)),
+                var("x", pointer(scalar(ElemSize::F32), vec![], MemSpace::Device)),
                 int(0, None),
                 scalar(ElemSize::F32)
             ),
