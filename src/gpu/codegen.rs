@@ -30,10 +30,10 @@ fn from_ir_type(ty: ir_ast::Type) -> Type {
                 mem: MemSpace::Device
             }
         },
-        ir_ast::Type::Pointer {ty} => {
+        ir_ast::Type::Pointer {ty, shape} => {
             Type::Pointer {
                 ty: Box::new(from_ir_type(*ty)),
-                shape: vec![],
+                shape,
                 mem: MemSpace::Device
             }
         },

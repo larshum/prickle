@@ -13,7 +13,7 @@ pub use crate::utils::ast::Target;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Type {
     Tensor {sz: ElemSize, shape: Vec<i64>},
-    Pointer {ty: Box<Type>},
+    Pointer {ty: Box<Type>, shape: Vec<i64>},
     Void,
 }
 

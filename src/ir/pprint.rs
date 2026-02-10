@@ -16,9 +16,12 @@ impl PrettyPrint for Type {
                     .join(", ");
                 (env, format!("tensor<{sz};{shape_str}>"))
             },
-            Type::Pointer {ty} => {
+            Type::Pointer {ty, shape} => {
                 let (env, ty) = ty.pprint(env);
-                (env, format!("ptr<{ty}>"))
+                let shape_str = shape.iter()
+                    .map(|s| s.to_string())
+                    .join(", ");
+                (env, format!("ptr<{ty};{shape_str}>"))
             },
             Type::Void => (env, format!("void"))
         }

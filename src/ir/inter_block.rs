@@ -938,7 +938,10 @@ fn collect_variable_temp_data(
                 });
             let (ty, res_ty) = match ty {
                 Type::Tensor {..} => {
-                    let ptr_ty = Type::Pointer {ty: Box::new(ty.clone())};
+                    let ptr_ty = Type::Pointer {
+                        ty: Box::new(ty.clone()),
+                        shape: vec![size as i64]
+                    };
                     (ptr_ty, ty.clone())
                 },
                 _ => parpy_compile_error!(i, "Cannot allocate temporary data \
