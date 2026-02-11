@@ -14,14 +14,18 @@ impl PrettyPrint for Type {
                 let shape_str = shape.iter()
                     .map(|s| s.to_string())
                     .join(", ");
-                (env, format!("tensor<{sz};{shape_str}>"))
+                (env, format!("tensor<{sz};[{shape_str}]>"))
             },
             Type::Pointer {ty, shape} => {
                 let (env, ty) = ty.pprint(env);
-                let shape_str = shape.iter()
-                    .map(|s| s.to_string())
-                    .join(", ");
-                (env, format!("ptr<{ty};{shape_str}>"))
+                let shape_str = if shape.is_empty() {
+                    "".to_string()
+                } else {
+                    shape.iter()
+                        .map(|s| s.to_string())
+                        .join(", ")
+                };
+                (env, format!("ptr<{ty};[{shape_str}]>"))
             },
             Type::Void => (env, format!("void"))
         }
@@ -257,13 +261,13 @@ mod test {
 
     #[test]
     fn print_tensor_vector_type() {
-        assert_eq!(shape(vec![10]).pprint_default(), "tensor<int64_t;10>");
+        assert_eq!(shape(vec![10]).pprint_default(), "tensor<int64_t;[10]>");
     }
 
     #[test]
     fn print_pointer_type() {
-        let ptrty = Type::Pointer {ty: Box::new(scalar(ElemSize::F16))};
-        assert_eq!(ptrty.pprint_default(), "ptr<half>");
+        let ptrty = Type::Pointer {ty: Box::new(scalar(ElemSize::F16)), shape: vec![]};
+        assert_eq!(ptrty.pprint_default(), "ptr<half;[]>");
     }
 
     #[test]
