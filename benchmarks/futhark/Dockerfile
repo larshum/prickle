@@ -1,4 +1,4 @@
-FROM docker.io/nvidia/cuda:13.1.0-devel-ubuntu24.04
+FROM docker.io/nvidia/cuda:13.2.0-devel-ubuntu24.04
 
 SHELL ["/bin/bash", "-c"]
 
@@ -40,12 +40,14 @@ RUN mkdir -p /root/miniconda3 \
 
 # Needs to be done manually, because running it via the Dockerfile installs a non-CUDA version of PyTorch
 # Install ParPy
-#RUN git clone https://github.com/parpy-lib/ParPy.git \
-# && cd /tmp/ParPy \
-# && source /root/miniconda3/bin/activate \
-# && conda env create -f benchmarks/cuda-env.yml -y \
-# && conda activate cuda-parpy-env \
-# && pip install .
+RUN git clone https://github.com/parpy-lib/ParPy.git \
+ && cd /tmp/ParPy \
+ && git checkout 2026-results \
+ && source /root/miniconda3/bin/activate \
+ && CONDA_OVERRIDE_CUDA=13.2 conda env create -f benchmarks/cuda-env-blackwell.yml -y \
+ && conda activate cuda-parpy-env \
+ && pip install .
 
-# podman build --format docker --rm -t futhark-container .
-# podman run --rm -it --volume .:/root/custom --device "nvidia.com/gpu=all" futhark-container bash
+RUN echo "source /root/miniconda3/bin/activate" >> /root/.bashrc \
+ && echo "conda activate cuda-parpy-env" >> /root/.bashrc \
+ && echo "cd /tmp/ParPy/benchmarks/futhark" >> /root/.bashrc

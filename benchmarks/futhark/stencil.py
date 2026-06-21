@@ -39,6 +39,18 @@ def stencil(
                 for k in range(nz):
                     A0[i,j,k] = next(c0, c1, A0, i, j, k)
 
+@parpy.jit
+def stencil_opt(
+    iterations: I32,
+    A0: parpy.types.buffer(F32, [nx, ny, nz]),
+):
+    c0 = parpy.builtin.convert(1.0 / 6.0, F32)
+    c1 = parpy.builtin.convert(1.0 / 6.0 / 6.0, F32)
+    for _iter in range(iterations):
+        parpy.label('flattened')
+        for i, j, k in parpy.builtin.ranges(nx, ny, nz):
+            A0[i,j,k] = next(c0, c1, A0, i, j, k)
+
 def matches_compute_kernels(entry, iterations):
     entry_name = entry["Name"]
     if entry_name.find("parpy_stencil") >= 0:
@@ -79,19 +91,26 @@ elif command == "run":
     parser.add_argument("--ny", type=int, required=True)
     parser.add_argument("--nz", type=int, required=True)
     parser.add_argument("--iterations", type=int, required=True)
+    parser.add_argument("--optimized", action=argparse.BooleanOptionalAction)
     args = parser.parse_args(sys.argv[2:])
 
-    buffer = torch.randn((args.ny, args.nz), dtype=torch.float32)
+    buffer = torch.randn((args.ny, args.nz), dtype=torch.float32, device='cuda')
 
     # Expand by repeating each [ny, nz] matrix nx times
-    expanded = buffer.unsqueeze(0).expand(args.nx, -1, -1).cuda()
+    expanded = buffer.unsqueeze(0).expand(args.nx, -1, -1).contiguous()
 
-    p = {
-        'nx': parpy.threads(args.nx),
-        'ny': parpy.threads(args.ny),
-        'nz': parpy.threads(args.nz),
-    }
-    stencil(args.iterations, expanded, opts=parpy.par(p))
+    if args.optimized:
+        p = {
+            'flattened': parpy.threads(args.nx * args.ny * args.nz).tpb(256),
+        }
+        stencil_opt(args.iterations, expanded, opts=parpy.par(p))
+    else:
+        p = {
+            'nx': parpy.threads(args.nx),
+            'ny': parpy.threads(args.ny),
+            'nz': parpy.threads(args.nz),
+        }
+        stencil(args.iterations, expanded, opts=parpy.par(p))
 
     np.set_printoptions(threshold=sys.maxsize, linewidth=1<<30)
     with open(args.output_file, "w+") as f:
@@ -101,14 +120,15 @@ elif command == "print-results":
     parser.add_argument("--iterations", type=int, required=True)
     args = parser.parse_args(sys.argv[2:4])
 
-    print("\\begin{tabular}{l|cc}")
-    print("Problem set & \\frameworkname & Futhark\\\\")
+    print("\\begin{tabular}{l|ccc}")
+    print("Problem set & \\frameworkname\\ (1) & \\frameworkname\\ (2) & Futhark\\\\")
     print("\\hline")
     for nx in [int(x) for x in sys.argv[4:]]:
-        parpy_results = int(parse_performance(f"data/parpy-stencil-{nx}.json", args.iterations))
+        parpy_naive_results = int(parse_performance(f"data/parpy-stencil-{nx}.json", args.iterations))
+        parpy_opt_results = int(parse_performance(f"data/parpy-opt-stencil-{nx}.json", args.iterations))
         futhark_results = int(parse_performance(f"data/futhark-stencil-{nx}.json", args.iterations))
         label = "Default" if nx == 512 else "Small"
-        print(f"{label} & {parpy_results} ns & {futhark_results} ns\\\\")
+        print(f"{label} & {parpy_naive_results} ns & {parpy_opt_results} ns & {futhark_results} ns\\\\")
     print("\\end{tabular}")
 else:
     sys.stderr.write(f"Unsupported command {command}")
